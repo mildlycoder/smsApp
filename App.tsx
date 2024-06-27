@@ -15,8 +15,10 @@ import {
   Text,
   useColorScheme,
   View,
+  Platform,
+  DeviceEventEmitter
 } from 'react-native';
-
+import RnSmsRetriever from 'rn-sms-retriever';
 import {
   Colors,
   DebugInstructions,
@@ -28,7 +30,6 @@ import {
 type SectionProps = PropsWithChildren<{
   title: string;
 }>;
-import * as ReadSms from 'react-native-read-sms/ReadSms';
 function Section({children, title}: SectionProps): React.JSX.Element {
   const isDarkMode = useColorScheme() === 'dark';
   return (
@@ -62,21 +63,36 @@ function App(): React.JSX.Element {
     backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
   };
 
-  useEffect(() => {
-    const startReadSMS = async () => {
-      const hasPermission = await ReadSms.requestReadSMSPermission();
-      console.log(hasPermission)
-      if (hasPermission) {
-        //@ts-ignore
-        ReadSms.startReadSMS((status, sms, error) => {
-          if (status == 'success') {
-            console.log('Great!! you have received new sms:', sms);
-          }
-        });
+useEffect(() => {
+    //@ts-ignore
+    let smsListener: undefined | EmitterSubscription;
+    async function innerAsync() {
+      // get list of available phone numbers
+      try {
+        const selectedPhone = "+918956048972";
+        console.log('Selected Phone is : ' + selectedPhone);
+      } catch (e) {
+        console.log('Get Phone error', e);
       }
+      // get App Hash
+      const hash = await RnSmsRetriever.getAppHash();
+      console.log('Your App Hash is : ' + hash);
+      // set Up SMS Listener;
+      smsListener = DeviceEventEmitter.addListener(
+        RnSmsRetriever.SMS_EVENT,
+        (data: any) => {
+          console.log(data, 'SMS value');
+        }
+      );
+      // start Retriever;
+      await RnSmsRetriever.startSmsRetriever();
+    }
+    // only to be used with Android
+    if (Platform.OS === 'android') innerAsync();
+    return () => {
+      // remove the listsner on unmount
+      smsListener?.remove();
     };
-
-    startReadSMS()
   }, []);
   return (
     <SafeAreaView style={backgroundStyle}>
